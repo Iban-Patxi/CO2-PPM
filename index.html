@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>CO₂ – ThingSpeak</title>
+
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    canvas {
+      max-width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<h2>CO₂ – Détecteur (ppm)</h2>
+<h3 id="dernierCO2">Dernière valeur : -- ppm</h3>
+
+<canvas id="co2Chart"></canvas>
+<script>
+const SEUIL_BON = 800;
+const SEUIL_MOYEN = 1200;
+</script>
+<script>
+const CHANNEL_ID = 3242424;
+const FIELD_ID = 1;
+const NB_POINTS = 100;
+
+const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/fields/${FIELD_ID}.json?results=${NB_POINTS}`;
+
+fetch(url)
+  .then(r => r.json())
+  .then(data => {
+    const labels = [];
+    const values = [];
+
+    data.feeds.forEach(p => {
+      if (p[`field${FIELD_ID}`]) {
+        // UTC → heure locale
+        const date = new Date(p.created_at);
+        labels.push(date.toLocaleTimeString());
+        values.push(Number(p[`field${FIELD_ID}`]));
+      }
+// Afficher dernière valeur
+const derniereValeur = values[values.length - 1];
+const texteQualite = 
+  derniereValeur < 800 ? "Bon" :
+  derniereValeur < 1200 ? "Moyen" :
+  "Mauvais";
+
+const h3 = document.getElementById("dernierCO2");
+h3.textContent = `Dernière valeur : ${derniereValeur} ppm – air ${texteQualite}`;
+
+    });
+
+    drawChart(labels, values);
+  })
+  .catch(err => console.error("Erreur ThingSpeak :", err));
+
+function drawChart(labels, values) {
+  const ctx = document.getElementById('co2Chart').getContext('2d');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'CO₂ (ppm)',
+          data: values,
+          borderWidth: 2,
+          tension: 0.3,
+          pointRadius: 2,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        annotation: {
+  annotations: {
+    zoneBon: {
+      type: 'box',
+      yMin: 400,      // début de l’échelle Y
+      yMax: 800,
+      backgroundColor: 'rgba(0, 255, 0, 0.1)'
+    },
+    zoneMoyen: {
+      type: 'box',
+      yMin: 800,
+      yMax: 1200,
+      backgroundColor: 'rgba(255, 165, 0, 0.1)'
+    },
+    zoneMauvais: {
+      type: 'box',
+      yMin: 1200,
+      yMax: 1500,     // fin de l’échelle Y
+      backgroundColor: 'rgba(255, 0, 0, 0.1)'
+    }
+  }
+}
+      },
+      scales: {
+        y: {
+min: 400,
+max: 1500,
+          title: { display: true, text: 'ppm' },
+          grid: { color: 'rgba(0,0,0,0.1)', borderColor: 'rgba(0,0,0,0.3)' }
+        },
+        x: {
+          title: { display: true, text: 'Heure locale' },
+          grid: { color: 'rgba(0,0,0,0.1)' }
+        }
+      }
+    }
+  });
+}
+
+
+</script>
+
+
+</body>
+</html>
